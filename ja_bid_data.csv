@@ -1,4 +1,4 @@
-﻿participant,age_months,age_days,int_sight,int_sight_lookback,int_sound,moving_toy,moving_toy_lookback,freeplay,freeplay_lookback
+﻿participant,age_months,age_days,int_sight,int_sight_gs,int_sound,moving_toy,moving_toy_gs,freeplay,freeplay_gs
 1,6,184,0,0,1,0,0,0,0
 1,7,220,0,0,0,0,0,0,0
 1,8,246,1,1,1,1,1,0,0

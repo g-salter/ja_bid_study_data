@@ -1,0 +1,298 @@
+---
+title: "JA bid paper analyses"
+author: "Gideon Salter and Malinda Carpenter"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r Load packages, warning=FALSE, message=FALSE}
+library(readr) #Read data file from GitHub
+library(tidyverse) #Data manipulation
+library(reshape2) #Data manipulation
+library(lme4) #Fitting GLMMs
+library(MuMIn) #Model comparison
+library(emmeans) #Conduct posthoc comparisons
+library(sjPlot) #Print tables of coefficients
+library(performance) #Check for overdispersion in GLMs/GLMMs
+library(vcd) #Visualise distribution of data (here, for count outcome variable)
+library(irr) #Calculating inter-rater reliability
+```
+
+## Read in data
+Data from public Github repository (https://github.com/g-salter/ja_bid_study_data/)
+
+```{r Read data, message=FALSE}
+data <- read_csv(url("https://raw.githubusercontent.com/g-salter/ja_bid_study_data/main/ja_bid_data.csv?token=GHSAT0AAAAAACIIW6VX3XZOWDEZ5T7BQX72ZKBOKOQ")) 
+data <- as_tibble(data)
+data$age_days_cen <- scale(data$age_days, center = TRUE, scale = FALSE)
+data <- data %>% relocate(age_days_cen, .after = participant)
+
+```
+
+## 1. Analysis of combined data from all tasks (free play and three behavioural tests)
+The first set of models examine whether infants' age predicts whether they produce a communicative look across all of the four tasks used in the study.  
+
+```{r Combined}
+# Create new variable with highest value across all 4 tasks
+data_2 <- data %>% 
+  mutate(highscore_all = (pmax(int_sight, int_sound, moving_toy, freeplay, na.rm = TRUE)))
+    
+# Build models
+model_all1 <- glm(highscore_all ~ age_days_cen + as.factor(participant), family = binomial(link = "logit"), data = data_2)
+model_all2 <- glmer(highscore_all ~ age_days_cen + (1|participant), family = binomial(link = "logit"), data = data_2)
+model_all3 <- glmer(highscore_all ~ as.factor(age_months) + (1|participant),family = binomial(link = "logit"),data = data_2)
+
+# Model selection
+model.sel(model_all1, model_all2, model_all3)
+summary(model_all2)
+confint(model_all2)
+    
+# Posthoc comparisons on age using model with age as factor
+posthoc_all <- emmeans(model_all3, revpairwise~age_months, adjust="Tukey")
+summary(posthoc_all$contrasts)
+confint(posthoc_all$contrasts)
+
+# Tables of coefficients
+tab_model(model_all2, show.se = TRUE)
+tab_model(model_all3, show.se = TRUE)
+    
+```    
+
+## 2. Analysis of data from free play
+The second set of models examine whether infants' age predicts whether they produce a communicative look during free play.
+
+```{r Free play}
+# Build Models
+model_fp1 <- glm(freeplay ~ age_days_cen + as.factor(participant), family = binomial(link = "logit"), data = data)
+model_fp2 <- glmer(freeplay ~ age_days_cen + (1|participant), family = binomial(link = "logit"), data = data)
+model_fp3 <- glmer(freeplay ~ as.factor(age_months) + (1|participant), family = binomial(link = "logit"), data = data)
+  
+# Model selection
+model.sel(model_fp1, model_fp2, model_fp3)
+summary(model_fp2)
+confint(model_fp2)
+    
+# Posthoc comparisons on age using model with age as factor
+posthoc_fp <- emmeans(model_fp3, revpairwise ~ age_months, adjust="Tukey")
+summary(posthoc_fp$contrasts)
+confint(posthoc_fp$contrasts)
+
+# Tables of coefficients
+tab_model(model_fp2, show.se = TRUE)
+tab_model(model_fp3, show.se = TRUE)
+```
+    
+## 3. Data from behavioural tests
+The third set of models examine whether infants' age predicts whether they produce a communicative look during the three behavioural tests.
+    
+```{r Behavioural tests}    
+# Create new variable with highest value across the 3 behavioural tasks
+data_3 <- data %>%
+          mutate(highscore_bt = (pmax(int_sight, int_sound, moving_toy, na.rm = TRUE)))
+    
+# Build models
+model_tests1 <- glm(highscore_bt ~ age_days_cen + as.factor(participant), family = binomial(link = "logit"), data = data_3)
+model_tests2 <- glmer(highscore_bt ~ age_days_cen + (1|participant), family = binomial(link = "logit"), data = data_3)
+model_tests3 <- glmer(highscore_bt ~ as.factor(age_months) + (1|participant), family = binomial(link = "logit"), data =      data_3)
+    
+# Model selection
+model.sel(model_tests1, model_tests2, model_tests3)
+summary(model_tests2)
+confint(model_tests2)
+    
+# Posthoc comparisons on age using model with age as factor
+posthoc_tests <- emmeans(model_tests3, revpairwise ~ age_months, adjust="Tukey")
+summary(posthoc_tests$contrasts)
+confint(posthoc_tests$contrasts)
+    
+# Tables of coefficients
+tab_model(model_tests2, show.se = TRUE)
+tab_model(model_tests3, show.se = TRUE)
+```
+
+## 4. Data split into experimental tests versus free play
+The fourth set of models examine whether infants' age and type of task (free play or behavioural test, combining the three tests) predict whether they produce a communicative look.
+
+```{r Experimental vs free play}
+# Create new longform dataset
+data_3 <- data %>%
+          mutate(highscore_bt = (pmax(int_sight, int_sound, moving_toy, na.rm = TRUE)))
+data_4 <- data_3 %>% select (c(participant, age_days_cen, freeplay, highscore_bt))
+data_long_1 <- melt(data_4, id = c("participant", "age_days_cen"))
+data_long_1 <- as_tibble(data_long_1)
+names(data_long_1) <- c("participant", "age_days_cen", "type", "score")
+
+#For categorical age
+data_5 <- data_3 %>% select (c(participant, age_months, freeplay, highscore_bt))
+data_long_2 <- melt(data_5, id = c("participant", "age_months"))
+data_long_2 <- as_tibble(data_long_2)
+names(data_long_2) <- c("participant", "age_months", "type", "score")
+    
+# Build models
+model_testfp1 <- glm(score ~ age_days_cen + as.factor(participant) + type, family = binomial(link = "logit"), data = data_long_1)
+model_testfp2 <- glmer(score ~ age_days_cen + type + (1|participant), family = binomial(link = "logit"), data = data_long_1)
+model_testfp3 <- glmer(score ~ as.factor(age_months) + type + (1|participant), family = binomial(link = "logit"), data = data_long_2)
+    
+# Model selection
+model.sel(model_testfp1, model_testfp2, model_testfp3)
+summary(model_testfp2)
+confint(model_testfp2)
+    
+# Posthoc comparison on type
+posthoc_testfp <- emmeans(model_testfp2, revpairwise ~ type, adjust="Tukey")
+summary(posthoc_testfp$contrasts)
+confint(posthoc_testfp$contrasts)
+
+# Tables of coefficients
+tab_model(model_testfp2, show.se = TRUE)
+tab_model(model_testfp3, show.se = TRUE)
+    
+# Build models with age*task type interaction
+model_testfp3 <- glm(score ~ age_days_cen*type + as.factor(participant), family = binomial(link = "logit"), data = data_long_1)
+model_testfp4 <- glmer(score ~ age_days_cen*type + (1|participant), family = binomial(link = "logit"), data = data_long_1)
+model_testfp5 <- glmer(score ~ as.factor(age_months)*type + (1|participant), family = binomial(link = "logit"), data = data_long_2)
+
+# Model selection
+model.sel(model_testfp3, model_testfp4, model_testfp5)
+summary(model_testfp4)
+    
+# Posthoc comparisons on type for each level of age (using model with age as factor)
+posthoc_testfp2 <- emmeans(model_testfp5, revpairwise ~ type|age_months, adjust="Tukey")
+summary(posthoc_testfp2$contrasts)
+confint(posthoc_testfp2$contrasts)
+
+# Tables of coefficients
+tab_model(model_testfp4, show.se = TRUE)
+tab_model(model_testfp5, show.se = TRUE)
+
+```
+
+## 5. Data split by each task type, including the three behavioural tests and free play
+The fifth set of models examine whether infants' age and type of task (free play or three behavioural tests) predict whether they produce a communicative look.
+
+```{r All tasks separate}
+# Create new longform dataset with continuous age (days)
+data_6 <- data %>% select(c(participant, age_days_cen, freeplay, int_sight, int_sound, moving_toy))
+data_long_3 <- melt(data_6, id = c("participant", "age_days_cen"))
+data_long_3 <- as_tibble(data_long_3)
+names(data_long_3) <- c("participant", "age_days_cen", "type", "score")
+
+# Create new longform dataset for categorical age (months)
+data_7 <- data %>% select (c(participant, age_months, freeplay, int_sight, int_sound, moving_toy))
+data_long_4 <- melt(data_7, id = c("participant", "age_months"))
+data_long_4 <- as_tibble(data_long_4)
+names(data_long_4) <- c("participant", "age_months", "type", "score")
+ 
+# Build models
+model_ts1 <- glm(score ~ age_days_cen + type + as.factor(participant), family = binomial(link = "logit"), data = data_long_3)
+model_ts2 <- glmer(score ~ age_days_cen + type + (1|participant), family = binomial(link = "logit"), data = data_long_3)
+model_ts3 <- glmer(score ~ as.factor(age_months) + type + (1|participant), family = binomial(link = "logit"), data = data_long_4)
+    
+# Model selection
+model.sel(model_ts1, model_ts2, model_ts3)
+summary(model_ts2)
+    
+# Posthoc comparisons on type
+posthoc_ts <- emmeans(model_ts2, pairwise~type, adjust="Tukey")
+summary(posthoc_ts$contrasts)
+confint(posthoc_ts$contrasts)
+
+# Confidence intervals for significant differences
+confint(posthoc_ts$contrasts)
+
+# Tables of coefficients
+tab_model(model_ts2, show.se = TRUE)
+```
+
+## 6. Counts of JA production by task
+The sixth set of models examine whether infants' age predicts the number of different tasks in which they produce a communicative look.
+
+```{r Counts}
+# Create new count variable based on number of tasks in which participant produces a JA bid 
+data_counts <- data %>%
+mutate(count_score = (int_sight + int_sound + moving_toy + freeplay))
+    
+# Check distribution and fit of count data
+distplot(data_counts$count_score, type="poisson")
+fit <- goodfit(data_counts$count_score, type="poisson")
+summary(fit) 
+    
+# Build models
+model_count1 <- glm(count_score ~ age_days_cen + as.factor(participant), family = poisson, data = data_counts)
+model_count2 <- glmer(count_score ~ age_days_cen + (1|participant), family = poisson(link = "log"), data = data_counts)
+model_count3 <- glmer(count_score ~ as.factor(age_months) + (1|participant), family = poisson(link = "log"), data = data_counts)
+    
+# Check for overdispersion
+check_overdispersion(model_count1)
+check_overdispersion(model_count2)
+check_overdispersion(model_count3)
+
+# Model selection
+model.sel(model_count1, model_count2, model_count3)
+summary(model_count2)
+confint(model_count2)
+
+# Posthoc comparisons on age using model with age as factor
+posthoc_count <- emmeans(model_count3, revpairwise~age_months, adjust="Tukey")
+summary(posthoc_count$contrasts)
+confint(posthoc_count$contrasts)
+
+# Tables of coefficients
+tab_model(model_count2, show.se = TRUE)
+tab_model(model_count3, show.se = TRUE)
+
+```
+## 7. Percentage of cases in which communicative looks were followed by a gaze shift back to the stimulus
+
+```{r Gaze shifts back}
+# Bids with looks back to stimulus in Interesting Sight task
+interesting_sight_bids_gs <-  sum(na.omit(data$int_sight_gs))
+total_interesting_sight_bids <- sum(na.omit(data$int_sight))
+(interesting_sight_bids_gs/total_interesting_sight_bids) * 100
+
+# Bids with looks back to stimulus in Moving Toy task
+moving_toy_bids_gs <-  sum(na.omit(data$moving_toy_gs))
+total_moving_toy_bids <- sum(na.omit(data$moving_toy))
+(moving_toy_bids_gs/total_moving_toy_bids) * 100
+
+# Bids with looks back to stimulus in Free Play
+freeplay_bids_gs <-  sum(na.omit(data$freeplay_gs))
+total_freeplay_bids <- sum(na.omit(data$freeplay))
+(freeplay_bids_gs/total_freeplay_bids) * 100
+
+#Overall bids with looks back to stimulus
+overall_gs <- interesting_sight_bids_gs + moving_toy_bids_gs + freeplay_bids_gs
+overall_bids <- total_interesting_sight_bids + total_moving_toy_bids + total_freeplay_bids
+(overall_gs/overall_bids) * 100
+
+
+```
+
+
+## 8. Reliability
+```{r Reliability, message=FALSE}
+#Read in data
+reliability_data <- read_csv(url("https://raw.githubusercontent.com/g-salter/ja_bid_study_data/main/ja_bid_reliability.csv?token=GHSAT0AAAAAACIIW6VWHRN2DMIFQ65BPG3CZKBOE7A")) 
+
+#Initial reliability and agreement for all tasks combined (experimental tests and free play)
+ratings <- reliability_data[,4:5]
+
+kappa2(ratings, "squared")
+agree(ratings)
+
+#Initial reliability and agreement for behavioural tests
+reliability_data_b <- reliability_data %>% filter(type != "freeplay")
+ratings_b <- reliability_data_b[,4:5]
+
+kappa2(ratings_b, "squared")
+agree(ratings_b)
+
+#Initial reliability and agreement for free play
+reliability_data_fp <- reliability_data %>% filter(type == "freeplay")
+ratings_fp <- reliability_data_fp[,4:5]
+
+kappa2(ratings_fp, "squared")
+agree(ratings_fp)
+
+
+```

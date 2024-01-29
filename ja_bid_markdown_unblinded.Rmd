@@ -6,7 +6,6 @@ output: github_document
 ---
 
 ```{r Load packages, warning=FALSE, message=FALSE}
-library(readr) #Read data file from GitHub
 library(tidyverse) #Data manipulation
 library(reshape2) #Data manipulation
 library(lme4) #Fitting GLMMs
@@ -22,8 +21,11 @@ library(irr) #Calculating inter-rater reliability
 ```{r Read data, message=FALSE}
 data <- read_csv("ja_bid_data.csv")
 data <- as_tibble(data)
+
+# Centre age variable and position next to Participant ID for readability
 data$age_days_cen <- scale(data$age_days, center = TRUE, scale = FALSE)
-data <- data %>% relocate(age_days_cen, .after = participant)
+data <- data %>% 
+          relocate(age_days_cen, .after = participant)
 
 ```
 
@@ -91,7 +93,7 @@ data_3 <- data %>%
 # Build models
 model_tests1 <- glm(highscore_bt ~ age_days_cen + as.factor(participant), family = binomial(link = "logit"), data = data_3)
 model_tests2 <- glmer(highscore_bt ~ age_days_cen + (1|participant), family = binomial(link = "logit"), data = data_3)
-model_tests3 <- glmer(highscore_bt ~ as.factor(age_months) + (1|participant), family = binomial(link = "logit"), data =      data_3)
+model_tests3 <- glmer(highscore_bt ~ as.factor(age_months) + (1|participant), family = binomial(link = "logit"), data = data_3)
     
 # Model selection
 model.sel(model_tests1, model_tests2, model_tests3)

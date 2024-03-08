@@ -1,10 +1,9 @@
 JA bid paper analyses
 ================
 Gideon Salter and Malinda Carpenter
-2024-01-26
+2024-03-08
 
 ``` r
-library(readr) #Read data file from GitHub
 library(tidyverse) #Data manipulation
 library(reshape2) #Data manipulation
 library(lme4) #Fitting GLMMs
@@ -21,19 +20,21 @@ library(irr) #Calculating inter-rater reliability
 ``` r
 data <- read_csv("ja_bid_data.csv")
 data <- as_tibble(data)
-data$age_days_cen <- scale(data$age_days, center = TRUE, scale = FALSE)
-data <- data %>% relocate(age_days_cen, .after = participant)
+
+# Centre age variable and position next to Participant ID for readability
+data <- data |>  
+  mutate(age_days_cen = scale(age_days, center = TRUE, scale = FALSE)) |> 
+  relocate(age_days_cen, .after = participant)
 ```
 
 ## 1. Analysis of combined data from all tasks (free play and three behavioural tests)
 
 The first set of models examine whether infants’ age predicts whether
-they produce a communicative look across all of the four tasks used in
-the study.
+they produce a JA bid across all of the four tasks used in the study.
 
 ``` r
 # Create new variable with highest value across all 4 tasks
-data_2 <- data %>% 
+data_2 <- data |>  
   mutate(highscore_all = (pmax(int_sight, int_sound, moving_toy, freeplay, na.rm = TRUE)))
     
 # Build models
@@ -430,7 +431,7 @@ Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
 ## 2. Analysis of data from free play
 
 The second set of models examine whether infants’ age predicts whether
-they produce a communicative look during free play.
+they produce a JA bid during free play.
 
 ``` r
 # Build Models
@@ -827,17 +828,17 @@ Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
 ## 3. Data from behavioural tests
 
 The third set of models examine whether infants’ age predicts whether
-they produce a communicative look during the three behavioural tests.
+they produce a JA bid during the three behavioural tests.
 
 ``` r
 # Create new variable with highest value across the 3 behavioural tasks
-data_3 <- data %>%
+data_3 <- data |> 
           mutate(highscore_bt = (pmax(int_sight, int_sound, moving_toy, na.rm = TRUE)))
     
 # Build models
 model_tests1 <- glm(highscore_bt ~ age_days_cen + as.factor(participant), family = binomial(link = "logit"), data = data_3)
 model_tests2 <- glmer(highscore_bt ~ age_days_cen + (1|participant), family = binomial(link = "logit"), data = data_3)
-model_tests3 <- glmer(highscore_bt ~ as.factor(age_months) + (1|participant), family = binomial(link = "logit"), data =      data_3)
+model_tests3 <- glmer(highscore_bt ~ as.factor(age_months) + (1|participant), family = binomial(link = "logit"), data = data_3)
     
 # Model selection
 model.sel(model_tests1, model_tests2, model_tests3)
@@ -1229,19 +1230,24 @@ Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
 
 The fourth set of models examine whether infants’ age and type of task
 (free play or behavioural test, combining the three tests) predict
-whether they produce a communicative look.
+whether they produce a JA bid.
 
 ``` r
 # Create new longform dataset
-data_3 <- data %>%
+data_3 <- data  |> 
           mutate(highscore_bt = (pmax(int_sight, int_sound, moving_toy, na.rm = TRUE)))
-data_4 <- data_3 %>% select (c(participant, age_days_cen, freeplay, highscore_bt))
-data_long_1 <- melt(data_4, id = c("participant", "age_days_cen"))
-data_long_1 <- as_tibble(data_long_1)
+
+data_4 <- data_3  |>  
+  select (c(participant, age_days_cen, freeplay, highscore_bt))
+
+data_long_1 <- data_4 |> 
+  melt(id = c("participant", "age_days_cen"))
+  
+data_long_1 <-  as_tibble(data_long_1)
 names(data_long_1) <- c("participant", "age_days_cen", "type", "score")
 
 #For categorical age
-data_5 <- data_3 %>% select (c(participant, age_months, freeplay, highscore_bt))
+data_5 <- data_3  |>  select (c(participant, age_months, freeplay, highscore_bt))
 data_long_2 <- melt(data_5, id = c("participant", "age_months"))
 data_long_2 <- as_tibble(data_long_2)
 names(data_long_2) <- c("participant", "age_months", "type", "score")
@@ -2185,18 +2191,18 @@ Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
 ## 5. Data split by each task type, including the three behavioural tests and free play
 
 The fifth set of models examine whether infants’ age and type of task
-(free play or three behavioural tests) predict whether they produce a
-communicative look.
+(free play or three behavioural tests) predict whether they produce a JA
+bid.
 
 ``` r
 # Create new longform dataset with continuous age (days)
-data_6 <- data %>% select(c(participant, age_days_cen, freeplay, int_sight, int_sound, moving_toy))
+data_6 <- data |>  select(c(participant, age_days_cen, freeplay, int_sight, int_sound, moving_toy))
 data_long_3 <- melt(data_6, id = c("participant", "age_days_cen"))
 data_long_3 <- as_tibble(data_long_3)
 names(data_long_3) <- c("participant", "age_days_cen", "type", "score")
 
 # Create new longform dataset for categorical age (months)
-data_7 <- data %>% select (c(participant, age_months, freeplay, int_sight, int_sound, moving_toy))
+data_7 <- data |>  select (c(participant, age_months, freeplay, int_sight, int_sound, moving_toy))
 data_long_4 <- melt(data_7, id = c("participant", "age_months"))
 data_long_4 <- as_tibble(data_long_4)
 names(data_long_4) <- c("participant", "age_months", "type", "score")
@@ -2483,188 +2489,175 @@ Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
 </tr>
 </table>
 
-## 6. Counts of JA production by task
+## 6. Modelling proportion of successes
 
-The sixth set of models examine whether infants’ age predicts the number
-of different tasks in which they produce a communicative look.
+The sixth set of models examine whether infants’ age predicts the
+proportion of trials in which they produce a JA bid.
 
 ``` r
-# Create new count variable based on number of tasks in which participant produces a JA bid 
-data_counts <- data %>%
-mutate(count_score = (int_sight + int_sound + moving_toy + freeplay))
-    
-# Check distribution and fit of count data
-distplot(data_counts$count_score, type="poisson")
+# Add a new column with the number of trails that were completed
+data_prop <- data
+
+  for (i in 1:nrow(data_prop)) {
+     data_prop$num_trials_complete[i] <- sum(!is.na(data[i, c("int_sight", "int_sound", "moving_toy", "freeplay")]))
+  }
 ```
 
-![](ja_bid_markdown_unblinded_files/figure-gfm/Counts-1.png)<!-- -->
+    ## Warning: Unknown or uninitialised column: `num_trials_complete`.
 
 ``` r
-fit <- goodfit(data_counts$count_score, type="poisson")
-summary(fit) 
-```
+# Sum the number of successes across all trials, then divide this by the number of trials to calculate the proportion of trials that were successful
+tasks <- data_prop |> 
+  select(int_sight, int_sound, moving_toy, freeplay)
 
-    ## 
-    ##   Goodness-of-fit test for poisson distribution
-    ## 
-    ##                       X^2 df  P(> X^2)
-    ## Likelihood Ratio 4.281307  3 0.2326466
+data_prop$counts <- rowSums(tasks, na.rm = TRUE)
 
-``` r
-# Build models
-model_count1 <- glm(count_score ~ age_days_cen + as.factor(participant), family = poisson, data = data_counts)
-model_count2 <- glmer(count_score ~ age_days_cen + (1|participant), family = poisson(link = "log"), data = data_counts)
-```
+data_prop <- data_prop |> 
+   mutate(prop_success = counts/num_trials_complete) 
 
-    ## boundary (singular) fit: see help('isSingular')
+# Build models with proportion of successes as outcome, weighted by number of trials completed
+model_prop1 <- glm(prop_success ~ age_days_cen + as.factor(participant), family = binomial, weights = num_trials_complete, data = data_prop)
+model_prop2 <- glmer(prop_success ~ age_days_cen + (1|participant), family = binomial(link = "logit"), weights = num_trials_complete, data = data_prop)
+model_prop3 <- glmer(prop_success ~ as.factor(age_months) + (1|participant), family = binomial(link = "logit"), weights = num_trials_complete, data = data_prop)
 
-``` r
-model_count3 <- glmer(count_score ~ as.factor(age_months) + (1|participant), family = poisson(link = "log"), data = data_counts)
-    
 # Check for overdispersion
-check_overdispersion(model_count1)
+check_overdispersion(model_prop1)
 ```
 
     ## # Overdispersion test
     ## 
-    ##        dispersion ratio =  0.886
-    ##   Pearson's Chi-Squared = 84.185
-    ##                 p-value =  0.779
+    ##        dispersion ratio =   1.289
+    ##   Pearson's Chi-Squared = 126.331
+    ##                 p-value =   0.029
+
+    ## Overdispersion detected.
+
+``` r
+check_overdispersion(model_prop2)
+```
+
+    ## # Overdispersion test
+    ## 
+    ##        dispersion ratio =   1.129
+    ##   Pearson's Chi-Squared = 136.588
+    ##                 p-value =   0.158
 
     ## No overdispersion detected.
 
 ``` r
-check_overdispersion(model_count2)
+check_overdispersion(model_prop3)
 ```
 
     ## # Overdispersion test
     ## 
-    ##        dispersion ratio =   0.905
-    ##   Pearson's Chi-Squared = 106.788
-    ##                 p-value =   0.761
-
-    ## No overdispersion detected.
-
-``` r
-check_overdispersion(model_count3)
-```
-
-    ## # Overdispersion test
-    ## 
-    ##        dispersion ratio =   0.923
-    ##   Pearson's Chi-Squared = 106.136
-    ##                 p-value =   0.711
+    ##        dispersion ratio =   1.146
+    ##   Pearson's Chi-Squared = 135.209
+    ##                 p-value =   0.133
 
     ## No overdispersion detected.
 
 ``` r
 # Model selection
-model.sel(model_count1, model_count2, model_count3)
+model.sel(model_prop2, model_prop3)
 ```
 
     ## Model selection table 
-    ##                (Int) age_dys_cen as.fct(prt) as.fct(age_mnt)    class random df
-    ## model_count2  0.1492    0.007849                             glmerMod      p  3
-    ## model_count3 -0.3027                                       + glmerMod      p  6
-    ## model_count1  0.2730    0.007218           +                      glm        26
-    ##                logLik  AICc delta weight
-    ## model_count2 -164.400 335.0  0.00  0.968
-    ## model_count3 -164.547 341.8  6.83  0.032
-    ## model_count1 -151.819 370.6 35.57  0.000
+    ##               (Int) age_dys_cen as.fct(age_mnt) df   logLik  AICc delta weight
+    ## model_prop2 -0.8991     0.01196                  3 -165.259 336.7  0.00  0.969
+    ## model_prop3 -1.5990                           +  6 -165.447 343.6  6.89  0.031
     ## Models ranked by AICc(x) 
-    ## Random terms: 
-    ##  p: 1 | participant
+    ## Random terms (all models): 
+    ##   1 | participant
 
 ``` r
-summary(model_count2)
+summary(model_prop2)
 ```
 
     ## Generalized linear mixed model fit by maximum likelihood (Laplace
     ##   Approximation) [glmerMod]
-    ##  Family: poisson  ( log )
-    ## Formula: count_score ~ age_days_cen + (1 | participant)
-    ##    Data: data_counts
+    ##  Family: binomial  ( logit )
+    ## Formula: prop_success ~ age_days_cen + (1 | participant)
+    ##    Data: data_prop
+    ## Weights: num_trials_complete
     ## 
     ##      AIC      BIC   logLik deviance df.resid 
-    ##    334.8    343.2   -164.4    328.8      118 
+    ##    336.5    345.0   -165.3    330.5      121 
     ## 
     ## Scaled residuals: 
-    ##     Min      1Q  Median      3Q     Max 
-    ## -1.3882 -0.8567 -0.1302  0.4540  2.7139 
+    ##      Min       1Q   Median       3Q      Max 
+    ## -1.94140 -0.87388 -0.07661  0.61059  2.81927 
     ## 
     ## Random effects:
     ##  Groups      Name        Variance Std.Dev.
-    ##  participant (Intercept) 0        0       
-    ## Number of obs: 121, groups:  participant, 25
+    ##  participant (Intercept) 0.1087   0.3297  
+    ## Number of obs: 124, groups:  participant, 25
     ## 
     ## Fixed effects:
-    ##              Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)  0.149239   0.086769    1.72   0.0854 .  
-    ## age_days_cen 0.007849   0.001957    4.01 6.06e-05 ***
+    ##               Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept)  -0.899118   0.124495  -7.222 5.12e-13 ***
+    ## age_days_cen  0.011959   0.002423   4.937 7.95e-07 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
     ## Correlation of Fixed Effects:
     ##             (Intr)
-    ## age_days_cn -0.329
-    ## optimizer (Nelder_Mead) convergence code: 0 (OK)
-    ## boundary (singular) fit: see help('isSingular')
+    ## age_days_cn -0.166
 
 ``` r
-confint(model_count2)
+confint(model_prop2)
 ```
 
     ## Computing profile confidence intervals ...
 
-    ##                     2.5 %     97.5 %
-    ## .sig01        0.000000000 0.36902299
-    ## (Intercept)  -0.044097031 0.31418525
-    ## age_days_cen  0.004047011 0.01172959
+    ##                    2.5 %      97.5 %
+    ## .sig01        0.00000000  0.66196128
+    ## (Intercept)  -1.16693529 -0.65780483
+    ## age_days_cen  0.00727492  0.01679547
 
 ``` r
 # Posthoc comparisons on age using model with age as factor
-posthoc_count <- emmeans(model_count3, revpairwise~age_months, adjust="Tukey")
-summary(posthoc_count$contrasts)
+posthoc_prop <- emmeans(model_prop3, revpairwise~age_months, adjust="Tukey")
+summary(posthoc_prop$contrasts)
 ```
 
     ##  contrast                   estimate    SE  df z.ratio p.value
-    ##  age_months7 - age_months6    0.0788 0.330 Inf   0.239  0.9993
-    ##  age_months8 - age_months6    0.5796 0.299 Inf   1.940  0.2961
-    ##  age_months8 - age_months7    0.5008 0.283 Inf   1.767  0.3929
-    ##  age_months9 - age_months6    0.7206 0.292 Inf   2.468  0.0980
-    ##  age_months9 - age_months7    0.6419 0.276 Inf   2.323  0.1374
-    ##  age_months9 - age_months8    0.1411 0.238 Inf   0.593  0.9762
-    ##  age_months10 - age_months6   0.8798 0.289 Inf   3.044  0.0198
-    ##  age_months10 - age_months7   0.8010 0.273 Inf   2.936  0.0275
-    ##  age_months10 - age_months8   0.3002 0.234 Inf   1.283  0.7015
-    ##  age_months10 - age_months9   0.1592 0.225 Inf   0.707  0.9551
+    ##  age_months7 - age_months6     0.175 0.369 Inf   0.474  0.9897
+    ##  age_months8 - age_months6     0.869 0.345 Inf   2.521  0.0860
+    ##  age_months8 - age_months7     0.694 0.332 Inf   2.092  0.2233
+    ##  age_months9 - age_months6     1.094 0.341 Inf   3.209  0.0117
+    ##  age_months9 - age_months7     0.919 0.328 Inf   2.803  0.0405
+    ##  age_months9 - age_months8     0.225 0.300 Inf   0.749  0.9447
+    ##  age_months10 - age_months6    1.346 0.342 Inf   3.942  0.0008
+    ##  age_months10 - age_months7    1.172 0.329 Inf   3.566  0.0033
+    ##  age_months10 - age_months8    0.477 0.301 Inf   1.586  0.5064
+    ##  age_months10 - age_months9    0.252 0.296 Inf   0.851  0.9144
     ## 
-    ## Results are given on the log (not the response) scale. 
+    ## Results are given on the log odds ratio (not the response) scale. 
     ## P value adjustment: tukey method for comparing a family of 5 estimates
 
 ``` r
-confint(posthoc_count$contrasts)
+confint(posthoc_prop$contrasts)
 ```
 
     ##  contrast                   estimate    SE  df asymp.LCL asymp.UCL
-    ##  age_months7 - age_months6    0.0788 0.330 Inf   -0.8216     0.979
-    ##  age_months8 - age_months6    0.5796 0.299 Inf   -0.2354     1.394
-    ##  age_months8 - age_months7    0.5008 0.283 Inf   -0.2722     1.274
-    ##  age_months9 - age_months6    0.7206 0.292 Inf   -0.0759     1.517
-    ##  age_months9 - age_months7    0.6419 0.276 Inf   -0.1117     1.395
-    ##  age_months9 - age_months8    0.1411 0.238 Inf   -0.5080     0.790
-    ##  age_months10 - age_months6   0.8798 0.289 Inf    0.0915     1.668
-    ##  age_months10 - age_months7   0.8010 0.273 Inf    0.0568     1.545
-    ##  age_months10 - age_months8   0.3002 0.234 Inf   -0.3379     0.938
-    ##  age_months10 - age_months9   0.1592 0.225 Inf   -0.4553     0.774
+    ##  age_months7 - age_months6     0.175 0.369 Inf   -0.8305      1.18
+    ##  age_months8 - age_months6     0.869 0.345 Inf   -0.0713      1.81
+    ##  age_months8 - age_months7     0.694 0.332 Inf   -0.2110      1.60
+    ##  age_months9 - age_months6     1.094 0.341 Inf    0.1639      2.02
+    ##  age_months9 - age_months7     0.919 0.328 Inf    0.0247      1.81
+    ##  age_months9 - age_months8     0.225 0.300 Inf   -0.5938      1.04
+    ##  age_months10 - age_months6    1.346 0.342 Inf    0.4146      2.28
+    ##  age_months10 - age_months7    1.172 0.329 Inf    0.2753      2.07
+    ##  age_months10 - age_months8    0.477 0.301 Inf   -0.3435      1.30
+    ##  age_months10 - age_months9    0.252 0.296 Inf   -0.5559      1.06
     ## 
-    ## Results are given on the log (not the response) scale. 
+    ## Results are given on the log odds ratio (not the response) scale. 
     ## Confidence level used: 0.95 
     ## Conf-level adjustment: tukey method for comparing a family of 5 estimates
 
 ``` r
 # Tables of coefficients
-tab_model(model_count2, show.se = TRUE)
+tab_model(model_prop2, show.se = TRUE)
 ```
 
 <table style="border-collapse:collapse; border:none;">
@@ -2673,7 +2666,7 @@ tab_model(model_count2, show.se = TRUE)
  
 </th>
 <th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">
-count_score
+prop_success
 </th>
 </tr>
 <tr>
@@ -2681,7 +2674,7 @@ count_score
 Predictors
 </td>
 <td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
-Incidence Rate Ratios
+Odds Ratios
 </td>
 <td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
 std. Error
@@ -2698,16 +2691,16 @@ p
 (Intercept)
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-1.16
+0.41
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.10
+0.05
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.98 – 1.38
+0.32 – 0.52
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.085
+<strong>\<0.001</strong>
 </td>
 </tr>
 <tr>
@@ -2721,7 +2714,7 @@ age days cen
 0.00
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-1.00 – 1.01
+1.01 – 1.02
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
 <strong>\<0.001</strong>
@@ -2737,7 +2730,7 @@ Random Effects
 σ<sup>2</sup>
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.60
+3.29
 </td>
 </tr>
 <tr>
@@ -2745,7 +2738,14 @@ Random Effects
 τ<sub>00</sub> <sub>participant</sub>
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.00
+0.11
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+ICC
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.03
 </td>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
@@ -2759,7 +2759,7 @@ N <sub>participant</sub>
 Observations
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">
-121
+124
 </td>
 </tr>
 <tr>
@@ -2767,13 +2767,13 @@ Observations
 Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.163 / NA
+0.075 / 0.104
 </td>
 </tr>
 </table>
 
 ``` r
-tab_model(model_count3, show.se = TRUE)
+tab_model(model_prop3, show.se = TRUE)
 ```
 
 <table style="border-collapse:collapse; border:none;">
@@ -2782,7 +2782,7 @@ tab_model(model_count3, show.se = TRUE)
  
 </th>
 <th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">
-count_score
+prop_success
 </th>
 </tr>
 <tr>
@@ -2790,7 +2790,7 @@ count_score
 Predictors
 </td>
 <td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
-Incidence Rate Ratios
+Odds Ratios
 </td>
 <td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
 std. Error
@@ -2807,16 +2807,16 @@ p
 (Intercept)
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.74
+0.20
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.18
+0.06
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.46 – 1.19
+0.12 – 0.35
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.213
+<strong>\<0.001</strong>
 </td>
 </tr>
 <tr>
@@ -2824,16 +2824,16 @@ p
 age months \[7\]
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-1.08
+1.19
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.36
+0.44
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.57 – 2.07
+0.58 – 2.45
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.811
+0.635
 </td>
 </tr>
 <tr>
@@ -2841,16 +2841,16 @@ age months \[7\]
 age months \[8\]
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-1.79
+2.38
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.53
+0.82
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.99 – 3.21
+1.21 – 4.69
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.052
+<strong>0.012</strong>
 </td>
 </tr>
 <tr>
@@ -2858,16 +2858,16 @@ age months \[8\]
 age months \[9\]
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-2.06
+2.99
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.60
+1.02
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-1.16 – 3.64
+1.53 – 5.83
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-<strong>0.014</strong>
+<strong>0.001</strong>
 </td>
 </tr>
 <tr>
@@ -2875,16 +2875,16 @@ age months \[9\]
 age months \[10\]
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-2.41
+3.84
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.70
+1.31
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-1.37 – 4.25
+1.97 – 7.51
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-<strong>0.002</strong>
+<strong>\<0.001</strong>
 </td>
 </tr>
 <tr>
@@ -2897,7 +2897,7 @@ Random Effects
 σ<sup>2</sup>
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.60
+3.29
 </td>
 </tr>
 <tr>
@@ -2905,14 +2905,14 @@ Random Effects
 τ<sub>00</sub> <sub>participant</sub>
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.00
+0.13
 </td>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
 ICC
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.00
+0.04
 </td>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
@@ -2926,7 +2926,7 @@ N <sub>participant</sub>
 Observations
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">
-121
+124
 </td>
 </tr>
 <tr>
@@ -2934,12 +2934,12 @@ Observations
 Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.169 / 0.171
+0.074 / 0.109
 </td>
 </tr>
 </table>
 
-## 7. Percentage of cases in which communicative looks were followed by a gaze shift back to the stimulus
+## 7. Percentage of cases in which JA bids were followed by a gaze shift back to the stimulus
 
 ``` r
 # Bids with looks back to stimulus in Interesting Sight task
@@ -3010,7 +3010,7 @@ agree(ratings)
 
 ``` r
 #Initial reliability and agreement for behavioural tests
-reliability_data_b <- reliability_data %>% filter(type != "freeplay")
+reliability_data_b <- reliability_data |>  filter(type != "freeplay")
 ratings_b <- reliability_data_b[,4:5]
 
 kappa2(ratings_b, "squared")
@@ -3037,7 +3037,7 @@ agree(ratings_b)
 
 ``` r
 #Initial reliability and agreement for free play
-reliability_data_fp <- reliability_data %>% filter(type == "freeplay")
+reliability_data_fp <- reliability_data |>  filter(type == "freeplay")
 ratings_fp <- reliability_data_fp[,4:5]
 
 kappa2(ratings_fp, "squared")
